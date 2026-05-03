@@ -438,7 +438,11 @@ export default function Home() {
         e.preventDefault();
         if (waitingForStop) {
           handleStop();
-        } else if (!busy) {
+        } else if (isMultiMode && isRevealed && !busy && multiIndex < multiResults.length - 1) {
+          // Advance to next winner in multi-winner mode
+          if (autoNextTimer.current) { clearTimeout(autoNextTimer.current); autoNextTimer.current = null; }
+          handleNextWinner();
+        } else if (!busy && !isRevealed) {
           generate();
         }
       }
@@ -451,7 +455,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [generate, handleStop, waitingForStop, busy, isFullscreen, toggleFullscreen]);
+  }, [generate, handleStop, handleNextWinner, waitingForStop, busy, isFullscreen, toggleFullscreen, isMultiMode, isRevealed, multiIndex, multiResults.length]);
 
   const handleMax = (val: string) => {
     setInputVal(val);

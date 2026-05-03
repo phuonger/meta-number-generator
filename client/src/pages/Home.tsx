@@ -200,6 +200,13 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [waitingForStop, setWaitingForStop] = useState(false);
   const [customTitle, setCustomTitle] = useState("Number Generator");
+  const [noDuplicates, setNoDuplicates] = useState(false);
+  const [usedNumbers, setUsedNumbers] = useState<Set<number>>(new Set());
+  const [multiWinner, setMultiWinner] = useState(false);
+  const [winnerCount, setWinnerCount] = useState(3);
+  const [multiResults, setMultiResults] = useState<number[]>([]);
+  const [multiIndex, setMultiIndex] = useState(0);
+  const [isMultiMode, setIsMultiMode] = useState(false);
 
   // Refs
   const scrambleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -211,6 +218,21 @@ export default function Home() {
 
   /* Confetti colours matching the gradient */
   const confettiColors = ["#fff", "#a8d8ff", "#b8f5e0", "#ffd6b0", "#e8b4ff"];
+
+  // Check if all numbers are exhausted
+  const allExhausted = noDuplicates && usedNumbers.size >= maxNumber;
+
+  const pickUniqueNumber = useCallback((): number | null => {
+    if (!noDuplicates) {
+      return Math.floor(Math.random() * maxNumber) + 1;
+    }
+    const available: number[] = [];
+    for (let i = 1; i <= maxNumber; i++) {
+      if (!usedNumbers.has(i)) available.push(i);
+    }
+    if (available.length === 0) return null;
+    return available[Math.floor(Math.random() * available.length)];
+  }, [maxNumber, noDuplicates, usedNumbers]);
 
   const stopAndReveal = useCallback(() => {
     // Clear scramble
@@ -228,7 +250,10 @@ export default function Home() {
     setCurrent(num);
     setAnimKey(k => k + 1);
     setRingTrigger(t => t + 1);
-    setHistory(h => [num, ...h].slice(0, 10));
+    setHistory(h => [num, ...h].slice(0, 50));
+    if (noDuplicates) {
+      setUsedNumbers(prev => new Set(prev).add(num));
+    }
 
     // Confetti burst
     const dots = Array.from({ length: 20 }, (_, i) => ({
@@ -244,16 +269,12 @@ export default function Home() {
     setTimeout(() => {
       setBusy(false);
     }, 800);
-  }, []);
+  }, [noDuplicates]);
 
-  const generate = useCallback(() => {
-    if (busy) return;
-    setBusy(true);
-    setIsRevealed(false);
-
-    // Pick the number now
-    const num = Math.floor(Math.random() * maxNumber) + 1;
+  const startSingleGenerate = useCallback((num: number) => {
     pendingNumber.current = num;
+    setIsRevealed(false);
+    setBusy(true);
 
     // Start dramatic mode
     setIsDramatic(true);
@@ -279,15 +300,47 @@ export default function Home() {
     }, 150);
 
     if (manualStop) {
-      // Wait for user to press stop
       setWaitingForStop(true);
     } else {
-      // Auto-stop after duration
       setTimeout(() => {
         stopAndReveal();
       }, duration * 1000);
     }
-  }, [busy, maxNumber, duration, manualStop, stopAndReveal]);
+  }, [maxNumber, duration, manualStop, stopAndReveal]);
+
+  const generate = useCallback(() => {
+    if (busy || allExhausted) return;
+
+    if (multiWinner) {
+      // Multi-winner mode: pre-pick all numbers
+      const results: number[] = [];
+      const tempUsed = new Set(usedNumbers);
+      for (let i = 0; i < winnerCount; i++) {
+        if (noDuplicates) {
+          const available: number[] = [];
+          for (let j = 1; j <= maxNumber; j++) {
+            if (!tempUsed.has(j)) available.push(j);
+          }
+          if (available.length === 0) break;
+          const picked = available[Math.floor(Math.random() * available.length)];
+          results.push(picked);
+          tempUsed.add(picked);
+        } else {
+          results.push(Math.floor(Math.random() * maxNumber) + 1);
+        }
+      }
+      if (results.length === 0) return;
+      setMultiResults(results);
+      setMultiIndex(0);
+      setIsMultiMode(true);
+      startSingleGenerate(results[0]);
+    } else {
+      // Single mode
+      const num = pickUniqueNumber();
+      if (num === null) return;
+      startSingleGenerate(num);
+    }
+  }, [busy, allExhausted, multiWinner, winnerCount, noDuplicates, usedNumbers, maxNumber, pickUniqueNumber, startSingleGenerate]);
 
   const handleStop = useCallback(() => {
     if (waitingForStop) {
@@ -303,9 +356,24 @@ export default function Home() {
     setBusy(false);
     setScrambling(false);
     setWaitingForStop(false);
+    setIsMultiMode(false);
+    setMultiResults([]);
+    setMultiIndex(0);
     if (scrambleTimer.current) { clearInterval(scrambleTimer.current); scrambleTimer.current = null; }
     if (tickTimer.current) { clearInterval(tickTimer.current); tickTimer.current = null; }
   }, []);
+
+  // Multi-winner: advance to next number after reveal
+  const handleNextWinner = useCallback(() => {
+    const nextIdx = multiIndex + 1;
+    if (nextIdx >= multiResults.length) {
+      // All winners revealed
+      setIsMultiMode(false);
+      return;
+    }
+    setMultiIndex(nextIdx);
+    startSingleGenerate(multiResults[nextIdx]);
+  }, [multiIndex, multiResults, startSingleGenerate]);
 
   /* Fullscreen toggle */
   const toggleFullscreen = useCallback(() => {
@@ -514,10 +582,34 @@ export default function Home() {
               {scrambling
                 ? (waitingForStop ? "Press Space or tap Stop to pick!" : "Picking a number…")
                 : isRevealed
-                  ? `from 1 – ${maxNumber.toLocaleString()}`
-                  : "Tap Generate to begin"
+                  ? (isMultiMode
+                    ? `Winner ${multiIndex + 1} of ${multiResults.length} — from 1 – ${maxNumber.toLocaleString()}`
+                    : `from 1 – ${maxNumber.toLocaleString()}`)
+                  : allExhausted
+                    ? "All numbers have been picked!"
+                    : "Tap Generate to begin"
               }
             </p>
+
+            {/* Multi-winner results strip */}
+            {isMultiMode && multiIndex > 0 && isRevealed && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {multiResults.slice(0, multiIndex).map((n, i) => (
+                  <span
+                    key={`mw-${i}`}
+                    className="px-3 py-1 rounded-full text-xs font-bold"
+                    style={{
+                      fontFamily: "Helvetica Neue, Arial, sans-serif",
+                      background: "oklch(1 0 0 / 0.25)",
+                      color: "white",
+                      border: "1px solid oklch(1 0 0 / 0.3)",
+                    }}
+                  >
+                    #{i + 1}: {n}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -528,7 +620,7 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          {/* Generate / Stop button */}
+          {/* Generate / Stop / Next / Reset buttons */}
           {waitingForStop ? (
             <motion.button
               onClick={handleStop}
@@ -546,6 +638,40 @@ export default function Home() {
             >
               STOP
             </motion.button>
+          ) : isRevealed && isMultiMode && multiIndex < multiResults.length - 1 ? (
+            <>
+              <motion.button
+                onClick={handleNextWinner}
+                className="relative overflow-hidden px-12 py-4 rounded-full text-xl font-bold tracking-wide transition-all duration-200 active:scale-95"
+                style={{
+                  fontFamily: "Helvetica Neue, Arial, sans-serif",
+                  background: "linear-gradient(135deg, #0082FB, #00C6FF)",
+                  color: "white",
+                  boxShadow: "0 8px 32px rgba(0,130,251,0.4), 0 2px 8px rgba(0,0,0,0.2)",
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Next Winner ({multiIndex + 2}/{multiResults.length})
+              </motion.button>
+              <motion.button
+                onClick={handleReset}
+                className="px-6 py-4 rounded-full text-sm font-bold tracking-wide transition-all duration-200 active:scale-95"
+                style={{
+                  fontFamily: "Helvetica Neue, Arial, sans-serif",
+                  background: "oklch(1 0 0 / 0.2)",
+                  color: "white",
+                  border: "1.5px solid oklch(1 0 0 / 0.3)",
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Reset
+              </motion.button>
+            </>
           ) : isRevealed ? (
             <motion.button
               onClick={handleReset}
@@ -566,18 +692,18 @@ export default function Home() {
           ) : (
             <motion.button
               onClick={generate}
-              disabled={busy}
+              disabled={busy || allExhausted}
               className="relative overflow-hidden px-12 py-4 rounded-full text-xl font-bold tracking-wide transition-all duration-200 active:scale-95 disabled:opacity-70"
               style={{
                 fontFamily: "Helvetica Neue, Arial, sans-serif",
-                background: "white",
-                color: "oklch(0.38 0.18 250)",
-                boxShadow: "0 8px 32px oklch(0 0 0 / 0.18), 0 2px 8px oklch(0 0 0 / 0.1)",
+                background: allExhausted ? "oklch(1 0 0 / 0.4)" : "white",
+                color: allExhausted ? "white" : "oklch(0.38 0.18 250)",
+                boxShadow: allExhausted ? "none" : "0 8px 32px oklch(0 0 0 / 0.18), 0 2px 8px oklch(0 0 0 / 0.1)",
               }}
-              whileHover={{ scale: 1.04, boxShadow: "0 12px 40px oklch(0 0 0 / 0.22)" }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={allExhausted ? {} : { scale: 1.04, boxShadow: "0 12px 40px oklch(0 0 0 / 0.22)" }}
+              whileTap={allExhausted ? {} : { scale: 0.97 }}
             >
-              Generate
+              {allExhausted ? "All Picked" : "Generate"}
             </motion.button>
           )}
         </motion.div>
@@ -846,6 +972,110 @@ export default function Home() {
                     />
                   </button>
                 </div>
+
+                {/* No Duplicates */}
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-white/80 text-sm font-semibold"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                      No Duplicates
+                    </p>
+                    <p className="text-white/50 text-xs mt-0.5"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                      Each number can only be picked once
+                      {noDuplicates && ` (${maxNumber - usedNumbers.size} remaining)`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setNoDuplicates(s => !s)}
+                    className="relative w-12 h-7 rounded-full transition-all duration-200"
+                    style={{
+                      background: noDuplicates ? "white" : "oklch(1 0 0 / 0.25)",
+                      border: "1.5px solid oklch(1 0 0 / 0.4)",
+                    }}
+                  >
+                    <div
+                      className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
+                      style={{
+                        left: noDuplicates ? "calc(100% - 1.4rem)" : "0.15rem",
+                        background: noDuplicates ? "oklch(0.38 0.18 250)" : "white",
+                      }}
+                    />
+                  </button>
+                </div>
+
+                {noDuplicates && usedNumbers.size > 0 && (
+                  <div className="mb-5">
+                    <button
+                      onClick={() => setUsedNumbers(new Set())}
+                      className="px-4 py-2 rounded-full text-xs font-semibold transition-all duration-150"
+                      style={{
+                        fontFamily: "Helvetica Neue, Arial, sans-serif",
+                        background: "oklch(1 0 0 / 0.15)",
+                        color: "white",
+                        border: "1.5px solid oklch(1 0 0 / 0.3)",
+                      }}
+                    >
+                      Reset Used Numbers ({usedNumbers.size} picked)
+                    </button>
+                  </div>
+                )}
+
+                {/* Multiple Winners */}
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-white/80 text-sm font-semibold"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                      Multiple Winners
+                    </p>
+                    <p className="text-white/50 text-xs mt-0.5"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                      Auto-generate multiple numbers in sequence
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setMultiWinner(s => !s)}
+                    className="relative w-12 h-7 rounded-full transition-all duration-200"
+                    style={{
+                      background: multiWinner ? "white" : "oklch(1 0 0 / 0.25)",
+                      border: "1.5px solid oklch(1 0 0 / 0.4)",
+                    }}
+                  >
+                    <div
+                      className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
+                      style={{
+                        left: multiWinner ? "calc(100% - 1.4rem)" : "0.15rem",
+                        background: multiWinner ? "oklch(0.38 0.18 250)" : "white",
+                      }}
+                    />
+                  </button>
+                </div>
+
+                {multiWinner && (
+                  <div className="mb-5">
+                    <label className="text-white/80 text-sm font-semibold block mb-2"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                      Number of Winners: <span className="text-white font-bold">{winnerCount}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={2}
+                      max={20}
+                      step={1}
+                      value={winnerCount}
+                      onChange={e => setWinnerCount(Number(e.target.value))}
+                      className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, white ${((winnerCount - 2) / 18) * 100}%, oklch(1 0 0 / 0.2) ${((winnerCount - 2) / 18) * 100}%)`,
+                      }}
+                    />
+                    <div className="flex justify-between text-white/50 text-xs mt-1"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                      <span>2</span>
+                      <span>20</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Custom Title */}
                 <div className="mb-5">

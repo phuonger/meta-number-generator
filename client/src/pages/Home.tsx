@@ -190,6 +190,10 @@ export default function Home() {
   const [isRevealed, setIsRevealed] = useState(false);
   const [scrambleDisplay, setScrambleDisplay] = useState<string | null>(null);
 
+  // Fullscreen presentation mode
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Settings
   const [duration, setDuration] = useState(5); // seconds
   const [manualStop, setManualStop] = useState(false);
@@ -302,7 +306,27 @@ export default function Home() {
     if (tickTimer.current) { clearInterval(tickTimer.current); tickTimer.current = null; }
   }, []);
 
-  /* Space-bar shortcut */
+  /* Fullscreen toggle */
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // Listen for fullscreen change (e.g. user presses ESC)
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  /* Space-bar & Escape shortcut */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === "INPUT") return;
@@ -314,10 +338,16 @@ export default function Home() {
           generate();
         }
       }
+      if (e.code === "Escape" && isFullscreen) {
+        // Browser handles exiting fullscreen on ESC automatically
+      }
+      if (e.code === "KeyF" && !busy) {
+        toggleFullscreen();
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [generate, handleStop, waitingForStop, busy]);
+  }, [generate, handleStop, waitingForStop, busy, isFullscreen, toggleFullscreen]);
 
   const handleMax = (val: string) => {
     setInputVal(val);
@@ -336,7 +366,35 @@ export default function Home() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden meta-gradient-bg flex flex-col">
+    <div ref={containerRef} className="relative min-h-screen overflow-hidden meta-gradient-bg flex flex-col">
+
+      {/* ── Fullscreen toggle button — top right ── */}
+      <button
+        onClick={toggleFullscreen}
+        className="absolute top-5 right-5 z-50 p-3 rounded-xl transition-all duration-200 hover:scale-110"
+        style={{
+          background: "oklch(1 0 0 / 0.2)",
+          border: "1.5px solid oklch(1 0 0 / 0.3)",
+          color: "white",
+        }}
+        title={isFullscreen ? "Exit fullscreen (F)" : "Fullscreen presentation mode (F)"}
+      >
+        {isFullscreen ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 14 10 14 10 20"/>
+            <polyline points="20 10 14 10 14 4"/>
+            <line x1="14" y1="10" x2="21" y2="3"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        )}
+      </button>
 
       {/* ── Dramatic overlay ── */}
       <AnimatePresence>
@@ -377,15 +435,20 @@ export default function Home() {
       {/* ── Main content ── */}
       <div className="relative z-40 flex flex-col items-center justify-center flex-1 px-6 py-12 gap-8">
 
-        {/* Title — fades during dramatic mode */}
-        <motion.h1
-          className="meta-heading text-5xl sm:text-6xl md:text-7xl text-center"
-          initial={{ opacity: 0, y: -24 }}
-          animate={{ opacity: isDramatic ? 0.2 : 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        >
-          Number Generator
-        </motion.h1>
+        {/* Title — fades during dramatic mode, hidden in fullscreen */}
+        <AnimatePresence>
+          {!isFullscreen && (
+            <motion.h1
+              className="meta-heading text-5xl sm:text-6xl md:text-7xl text-center"
+              initial={{ opacity: 0, y: -24 }}
+              animate={{ opacity: isDramatic ? 0.2 : 1, y: 0 }}
+              exit={{ opacity: 0, y: -24 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+            >
+              Number Generator
+            </motion.h1>
+          )}
+        </AnimatePresence>
 
         {/* ── Number card ── */}
         <motion.div
@@ -518,9 +581,9 @@ export default function Home() {
           )}
         </motion.div>
 
-        {/* ── Controls row — hidden during dramatic mode ── */}
+        {/* ── Controls row — hidden during dramatic mode and fullscreen ── */}
         <AnimatePresence>
-          {!isDramatic && (
+          {!isDramatic && !isFullscreen && (
             <motion.div
               className="flex items-center gap-3 flex-wrap justify-center"
               initial={{ opacity: 0 }}
@@ -601,7 +664,7 @@ export default function Home() {
 
         {/* ── Range panel ── */}
         <AnimatePresence>
-          {showRange && !isDramatic && (
+          {showRange && !isDramatic && !isFullscreen && (
             <motion.div
               className="w-full max-w-md"
               initial={{ opacity: 0, y: -12, height: 0 }}
@@ -668,7 +731,7 @@ export default function Home() {
 
         {/* ── History panel ── */}
         <AnimatePresence>
-          {showHistory && !isDramatic && (
+          {showHistory && !isDramatic && !isFullscreen && (
             <motion.div
               className="w-full max-w-md"
               initial={{ opacity: 0, y: -12, height: 0 }}
@@ -714,7 +777,7 @@ export default function Home() {
 
         {/* ── Settings panel ── */}
         <AnimatePresence>
-          {showSettings && !isDramatic && (
+          {showSettings && !isDramatic && !isFullscreen && (
             <motion.div
               className="w-full max-w-md"
               initial={{ opacity: 0, y: -12, height: 0 }}
@@ -817,8 +880,8 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* Hint — hidden during dramatic mode */}
-        {!isDramatic && !isRevealed && (
+        {/* Hint — hidden during dramatic mode and fullscreen */}
+        {!isDramatic && !isRevealed && !isFullscreen && (
           <motion.p
             className="text-white/50 text-sm"
             style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}

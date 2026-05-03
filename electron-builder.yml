@@ -1,0 +1,45 @@
+appId: com.meta.numbergenerator
+productName: Meta Number Generator
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: electron/resources
+
+files:
+  - dist/public/**/*
+  - electron/**/*
+  - "!node_modules"
+  - "!client"
+  - "!server"
+  - "!.manus-logs"
+
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: zip
+      arch:
+        - arm64
+  icon: electron/resources/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: electron/entitlements.mac.plist
+  entitlementsInherit: electron/entitlements.mac.plist
+  notarize: true
+
+dmg:
+  sign: false
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+publish:
+  provider: github
+  releaseType: release

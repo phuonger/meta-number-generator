@@ -70,7 +70,7 @@ app.whenReady().then(() => {
     },
   });
 
-  mainWindow.loadURL("app://bundle/index.html");
+  mainWindow.loadURL("app://bundle/index.html#/");
 
   mainWindow.on("closed", () => {
     mainWindow = null;

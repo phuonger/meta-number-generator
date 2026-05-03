@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, protocol } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
 let mainWindow;
 
@@ -17,14 +18,46 @@ function createWindow() {
     },
   });
 
-  const indexPath = path.join(__dirname, "..", "dist", "public", "index.html");
-  
-  // Load with hash routing to avoid file:// path issues with client-side router
-  mainWindow.loadURL(`file://${indexPath}#/`);
+  const distPath = path.join(__dirname, "..", "dist", "public");
+
+  // Register a custom protocol to serve files and handle SPA routing
+  protocol.handle("app", (request) => {
+    const url = new URL(request.url);
+    let filePath = path.join(distPath, url.pathname);
+    
+    // If file doesn't exist, serve index.html (SPA fallback)
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(distPath, "index.html");
+    }
+    
+    return new Response(fs.readFileSync(filePath), {
+      headers: { "Content-Type": getMimeType(filePath) },
+    });
+  });
+
+  mainWindow.loadURL("app://./index.html");
 
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+}
+
+function getMimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const types = {
+    ".html": "text/html",
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".svg": "image/svg+xml",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".ico": "image/x-icon",
+  };
+  return types[ext] || "application/octet-stream";
 }
 
 app.whenReady().then(createWindow);

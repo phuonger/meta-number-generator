@@ -36,6 +36,16 @@ jobs:
       - name: Install Electron
         run: pnpm add -D electron electron-builder
 
+      - name: Set version from tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+            npm pkg set version="$VERSION"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            npm pkg set version="${{ github.event.inputs.version }}"
+          fi
+
       - name: Build web app
         run: npx vite build
 

@@ -1411,37 +1411,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── Meta wordmark — bottom right ── */}
-      <div className="absolute bottom-6 right-8 z-20">
-        <svg
-          width="90"
-          height="24"
-          viewBox="0 0 90 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-label="Meta"
-        >
-          <path
-            d="M12 12C12 12 8.5 7 6 7C3.5 7 2 9.2 2 12C2 14.8 3.5 17 6 17C8.5 17 12 12 12 12Z"
-            fill="white"
-          />
-          <path
-            d="M12 12C12 12 15.5 7 18 7C20.5 7 22 9.2 22 12C22 14.8 20.5 17 18 17C15.5 17 12 12 12 12Z"
-            fill="white"
-          />
-          <text
-            x="28"
-            y="17"
-            fill="white"
-            fontSize="16"
-            fontWeight="700"
-            fontFamily="Helvetica Neue, Arial, sans-serif"
-            letterSpacing="-0.3"
-          >
-            Meta
-          </text>
-        </svg>
-      </div>
+
     </div>
   );
 }

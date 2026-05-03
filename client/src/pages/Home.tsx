@@ -207,6 +207,7 @@ export default function Home() {
   const [multiResults, setMultiResults] = useState<number[]>([]);
   const [multiIndex, setMultiIndex] = useState(0);
   const [isMultiMode, setIsMultiMode] = useState(false);
+  const [showMultiSummary, setShowMultiSummary] = useState(false);
 
   // Refs
   const scrambleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -359,6 +360,7 @@ export default function Home() {
     setIsMultiMode(false);
     setMultiResults([]);
     setMultiIndex(0);
+    setShowMultiSummary(false);
     if (scrambleTimer.current) { clearInterval(scrambleTimer.current); scrambleTimer.current = null; }
     if (tickTimer.current) { clearInterval(tickTimer.current); tickTimer.current = null; }
   }, []);
@@ -367,13 +369,29 @@ export default function Home() {
   const handleNextWinner = useCallback(() => {
     const nextIdx = multiIndex + 1;
     if (nextIdx >= multiResults.length) {
-      // All winners revealed
-      setIsMultiMode(false);
+      // All winners revealed — show summary after 1 second
+      setTimeout(() => {
+        setShowMultiSummary(true);
+        setIsDramatic(false);
+      }, 1000);
       return;
     }
     setMultiIndex(nextIdx);
     startSingleGenerate(multiResults[nextIdx]);
   }, [multiIndex, multiResults, startSingleGenerate]);
+
+  // Auto-show summary when last winner is revealed (for the final one in the sequence)
+  // This handles the case where it's the last winner and isRevealed becomes true
+  const lastWinnerRevealed = isMultiMode && isRevealed && multiIndex === multiResults.length - 1 && !showMultiSummary;
+  useEffect(() => {
+    if (lastWinnerRevealed) {
+      const timer = setTimeout(() => {
+        setShowMultiSummary(true);
+        setIsDramatic(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [lastWinnerRevealed]);
 
   /* Fullscreen toggle */
   const toggleFullscreen = useCallback(() => {
@@ -612,6 +630,104 @@ export default function Home() {
             )}
           </div>
         </motion.div>
+
+        {/* ── Multi-Winner Summary Overlay ── */}
+        <AnimatePresence>
+          {showMultiSummary && (
+            <motion.div
+              className="fixed inset-0 z-[100] flex flex-col items-center justify-center px-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              style={{ background: "linear-gradient(135deg, oklch(0.45 0.15 230), oklch(0.5 0.12 180), oklch(0.45 0.1 160))" }}
+            >
+              {/* Title */}
+              <motion.h2
+                className="text-white text-2xl sm:text-3xl font-bold tracking-wide mb-8 text-center"
+                style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+              >
+                All Winners
+              </motion.h2>
+
+              {/* Winners grid */}
+              <motion.div
+                className="grid gap-4 w-full max-w-2xl"
+                style={{
+                  gridTemplateColumns: multiResults.length <= 4
+                    ? `repeat(${Math.min(multiResults.length, 2)}, 1fr)`
+                    : multiResults.length <= 9
+                      ? "repeat(3, 1fr)"
+                      : "repeat(4, 1fr)",
+                }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+              >
+                {multiResults.map((num, i) => (
+                  <motion.div
+                    key={`summary-${i}`}
+                    className="flex flex-col items-center justify-center py-5 px-3 rounded-2xl"
+                    style={{
+                      background: "oklch(1 0 0 / 0.15)",
+                      border: "1.5px solid oklch(1 0 0 / 0.3)",
+                      backdropFilter: "blur(12px)",
+                    }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + i * 0.08, duration: 0.4 }}
+                  >
+                    <span
+                      className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}
+                    >
+                      #{i + 1}
+                    </span>
+                    <span
+                      className="text-white text-3xl sm:text-4xl md:text-5xl font-bold"
+                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}
+                    >
+                      {num}
+                    </span>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Range info */}
+              <motion.p
+                className="text-white/60 text-sm mt-6 font-medium"
+                style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                Range: 1 – {maxNumber.toLocaleString()} · {multiResults.length} winners
+              </motion.p>
+
+              {/* Reset button */}
+              <motion.button
+                onClick={handleReset}
+                className="mt-8 px-10 py-4 rounded-full text-lg font-bold tracking-wide transition-all duration-200 active:scale-95"
+                style={{
+                  fontFamily: "Helvetica Neue, Arial, sans-serif",
+                  background: "white",
+                  color: "oklch(0.38 0.18 250)",
+                  boxShadow: "0 8px 32px oklch(0 0 0 / 0.2)",
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7, duration: 0.4 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Start Over
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Action buttons ── */}
         <motion.div

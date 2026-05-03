@@ -208,6 +208,8 @@ export default function Home() {
   const [multiIndex, setMultiIndex] = useState(0);
   const [isMultiMode, setIsMultiMode] = useState(false);
   const [showMultiSummary, setShowMultiSummary] = useState(false);
+  const [manualNextWinner, setManualNextWinner] = useState(false);
+  const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs
   const scrambleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -363,6 +365,7 @@ export default function Home() {
     setShowMultiSummary(false);
     if (scrambleTimer.current) { clearInterval(scrambleTimer.current); scrambleTimer.current = null; }
     if (tickTimer.current) { clearInterval(tickTimer.current); tickTimer.current = null; }
+    if (autoNextTimer.current) { clearTimeout(autoNextTimer.current); autoNextTimer.current = null; }
   }, []);
 
   // Multi-winner: advance to next number after reveal
@@ -380,8 +383,7 @@ export default function Home() {
     startSingleGenerate(multiResults[nextIdx]);
   }, [multiIndex, multiResults, startSingleGenerate]);
 
-  // Auto-show summary when last winner is revealed (for the final one in the sequence)
-  // This handles the case where it's the last winner and isRevealed becomes true
+  // Auto-show summary when last winner is revealed
   const lastWinnerRevealed = isMultiMode && isRevealed && multiIndex === multiResults.length - 1 && !showMultiSummary;
   useEffect(() => {
     if (lastWinnerRevealed) {
@@ -392,6 +394,19 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [lastWinnerRevealed]);
+
+  // Auto-advance to next winner after 3 seconds (when not manual next and not last winner)
+  const shouldAutoAdvance = isMultiMode && isRevealed && !busy && multiIndex < multiResults.length - 1 && !manualNextWinner && !showMultiSummary;
+  useEffect(() => {
+    if (shouldAutoAdvance) {
+      autoNextTimer.current = setTimeout(() => {
+        handleNextWinner();
+      }, 3000);
+      return () => {
+        if (autoNextTimer.current) { clearTimeout(autoNextTimer.current); autoNextTimer.current = null; }
+      };
+    }
+  }, [shouldAutoAdvance, handleNextWinner]);
 
   /* Fullscreen toggle */
   const toggleFullscreen = useCallback(() => {
@@ -756,22 +771,49 @@ export default function Home() {
             </motion.button>
           ) : isRevealed && isMultiMode && multiIndex < multiResults.length - 1 ? (
             <>
-              <motion.button
-                onClick={handleNextWinner}
-                className="relative overflow-hidden px-12 py-4 rounded-full text-xl font-bold tracking-wide transition-all duration-200 active:scale-95"
-                style={{
-                  fontFamily: "Helvetica Neue, Arial, sans-serif",
-                  background: "linear-gradient(135deg, #0082FB, #00C6FF)",
-                  color: "white",
-                  boxShadow: "0 8px 32px rgba(0,130,251,0.4), 0 2px 8px rgba(0,0,0,0.2)",
-                }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                Next Winner ({multiIndex + 2}/{multiResults.length})
-              </motion.button>
+              {manualNextWinner ? (
+                <motion.button
+                  onClick={handleNextWinner}
+                  className="relative overflow-hidden px-12 py-4 rounded-full text-xl font-bold tracking-wide transition-all duration-200 active:scale-95"
+                  style={{
+                    fontFamily: "Helvetica Neue, Arial, sans-serif",
+                    background: "linear-gradient(135deg, #0082FB, #00C6FF)",
+                    color: "white",
+                    boxShadow: "0 8px 32px rgba(0,130,251,0.4), 0 2px 8px rgba(0,0,0,0.2)",
+                  }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  Next Winner ({multiIndex + 2}/{multiResults.length})
+                </motion.button>
+              ) : (
+                <motion.div
+                  className="flex flex-col items-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <p className="text-white/60 text-sm font-medium"
+                    style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                    Next winner in 3s… ({multiIndex + 2}/{multiResults.length})
+                  </p>
+                  <motion.button
+                    onClick={handleNextWinner}
+                    className="px-8 py-3 rounded-full text-sm font-bold tracking-wide transition-all duration-200 active:scale-95"
+                    style={{
+                      fontFamily: "Helvetica Neue, Arial, sans-serif",
+                      background: "linear-gradient(135deg, #0082FB, #00C6FF)",
+                      color: "white",
+                      boxShadow: "0 4px 16px rgba(0,130,251,0.3)",
+                    }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    Skip to Next
+                  </motion.button>
+                </motion.div>
+              )}
               <motion.button
                 onClick={handleReset}
                 className="px-6 py-4 rounded-full text-sm font-bold tracking-wide transition-all duration-200 active:scale-95"
@@ -1168,29 +1210,61 @@ export default function Home() {
                 </div>
 
                 {multiWinner && (
-                  <div className="mb-5">
-                    <label className="text-white/80 text-sm font-semibold block mb-2"
-                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
-                      Number of Winners: <span className="text-white font-bold">{winnerCount}</span>
-                    </label>
-                    <input
-                      type="range"
-                      min={2}
-                      max={20}
-                      step={1}
-                      value={winnerCount}
-                      onChange={e => setWinnerCount(Number(e.target.value))}
-                      className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                      style={{
-                        background: `linear-gradient(to right, white ${((winnerCount - 2) / 18) * 100}%, oklch(1 0 0 / 0.2) ${((winnerCount - 2) / 18) * 100}%)`,
-                      }}
-                    />
-                    <div className="flex justify-between text-white/50 text-xs mt-1"
-                      style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
-                      <span>2</span>
-                      <span>20</span>
+                  <>
+                    <div className="mb-5">
+                      <label className="text-white/80 text-sm font-semibold block mb-2"
+                        style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                        Number of Winners: <span className="text-white font-bold">{winnerCount}</span>
+                      </label>
+                      <input
+                        type="range"
+                        min={2}
+                        max={20}
+                        step={1}
+                        value={winnerCount}
+                        onChange={e => setWinnerCount(Number(e.target.value))}
+                        className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                        style={{
+                          background: `linear-gradient(to right, white ${((winnerCount - 2) / 18) * 100}%, oklch(1 0 0 / 0.2) ${((winnerCount - 2) / 18) * 100}%)`,
+                        }}
+                      />
+                      <div className="flex justify-between text-white/50 text-xs mt-1"
+                        style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                        <span>2</span>
+                        <span>20</span>
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Manual Next Winner */}
+                    <div className="mb-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-white/80 text-sm font-semibold"
+                          style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                          Manual Next
+                        </p>
+                        <p className="text-white/50 text-xs mt-0.5"
+                          style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                          {manualNextWinner ? "Click to advance to next winner" : "Auto-advances after 3 seconds"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setManualNextWinner(s => !s)}
+                        className="relative w-12 h-7 rounded-full transition-all duration-200"
+                        style={{
+                          background: manualNextWinner ? "white" : "oklch(1 0 0 / 0.25)",
+                          border: "1.5px solid oklch(1 0 0 / 0.4)",
+                        }}
+                      >
+                        <div
+                          className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
+                          style={{
+                            left: manualNextWinner ? "calc(100% - 1.4rem)" : "0.15rem",
+                            background: manualNextWinner ? "oklch(0.38 0.18 250)" : "white",
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </>
                 )}
 
                 {/* Custom Title */}

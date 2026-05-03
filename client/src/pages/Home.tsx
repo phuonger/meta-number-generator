@@ -96,7 +96,7 @@ class SoundEngine {
 const soundEngine = new SoundEngine();
 
 /* ── Idle animated placeholder ── */
-function IdlePlaceholder() {
+function IdlePlaceholder({ isFullscreen = false }: { isFullscreen?: boolean }) {
   const [digits, setDigits] = useState("???");
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -115,7 +115,11 @@ function IdlePlaceholder() {
 
   return (
     <motion.div
-      className="meta-number text-[7rem] sm:text-[9rem] md:text-[11rem] leading-none tabular-nums select-none"
+      className={`meta-number leading-none tabular-nums select-none ${
+        isFullscreen
+          ? "text-[12rem] sm:text-[16rem] md:text-[22rem] lg:text-[28rem]"
+          : "text-[7rem] sm:text-[9rem] md:text-[11rem]"
+      }`}
       style={{ opacity: 0.25, filter: "blur(2px)" }}
       animate={{
         opacity: [0.15, 0.3, 0.15],
@@ -541,7 +545,7 @@ export default function Home() {
       </div>
 
       {/* ── Main content ── */}
-      <div className="relative z-40 flex flex-col items-center justify-center flex-1 px-6 py-12 gap-8">
+      <div className={`relative z-40 flex flex-col items-center justify-center flex-1 px-6 gap-8 ${isFullscreen ? 'py-6' : 'py-12'}`}>
 
         {/* Title — fades during dramatic mode, hidden in fullscreen */}
         <AnimatePresence>
@@ -560,7 +564,7 @@ export default function Home() {
 
         {/* ── Number card ── */}
         <motion.div
-          className="relative w-full max-w-lg"
+          className={`relative w-full ${isFullscreen ? 'max-w-4xl' : 'max-w-lg'}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{
             opacity: 1,
@@ -574,7 +578,7 @@ export default function Home() {
             <PulseRing trigger={ringTrigger} />
           </div>
 
-          <div className="meta-card p-10 sm:p-14 flex flex-col items-center gap-4 text-center"
+          <div className={`meta-card flex flex-col items-center text-center ${isFullscreen ? 'p-12 sm:p-16 md:p-20 gap-6' : 'p-10 sm:p-14 gap-4'}`}
             style={{
               boxShadow: isDramatic ? "0 0 80px rgba(255,255,255,0.2), 0 0 160px rgba(0,130,251,0.15)" : "none",
               transition: "box-shadow 0.5s ease",
@@ -585,7 +589,7 @@ export default function Home() {
               {scrambling ? (
                 <motion.div
                   key="scramble"
-                  className="meta-number number-glow text-[7rem] sm:text-[9rem] md:text-[11rem] leading-none tabular-nums"
+                  className={`meta-number number-glow leading-none tabular-nums ${isFullscreen ? 'text-[12rem] sm:text-[16rem] md:text-[22rem] lg:text-[28rem]' : 'text-[7rem] sm:text-[9rem] md:text-[11rem]'}`}
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{
                     scale: [1, 1.02, 1],
@@ -598,7 +602,7 @@ export default function Home() {
               ) : isRevealed ? (
                 <motion.div
                   key={animKey}
-                  className="meta-number number-glow text-[7rem] sm:text-[9rem] md:text-[11rem] leading-none tabular-nums"
+                  className={`meta-number number-glow leading-none tabular-nums ${isFullscreen ? 'text-[12rem] sm:text-[16rem] md:text-[22rem] lg:text-[28rem]' : 'text-[7rem] sm:text-[9rem] md:text-[11rem]'}`}
                   initial={{ scale: 1.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 12 }}
@@ -612,12 +616,12 @@ export default function Home() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <IdlePlaceholder />
+                  <IdlePlaceholder isFullscreen={isFullscreen} />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <p className="text-white/70 text-base font-medium tracking-wide" style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+            <p className={`text-white/70 font-medium tracking-wide ${isFullscreen ? 'text-xl sm:text-2xl' : 'text-base'}`} style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
               {scrambling
                 ? (waitingForStop ? "Press Space or tap Stop to pick!" : "Picking a number…")
                 : isRevealed
@@ -752,7 +756,7 @@ export default function Home() {
 
         {/* ── Action buttons ── */}
         <motion.div
-          className="flex items-center gap-4"
+          className={`flex items-center gap-4 ${isFullscreen ? 'scale-125 mt-4' : ''}`}
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}

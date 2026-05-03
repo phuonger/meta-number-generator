@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-14  # Apple Silicon (M1) runner
+    runs-on: macos-14
     
     permissions:
       contents: write
@@ -29,36 +29,27 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install Electron
+        run: pnpm add -D electron electron-builder
 
       - name: Build web app
-        run: pnpm run build:web
-
-      - name: Install Electron dependencies
-        run: pnpm install electron electron-builder --save-dev
+        run: npx vite build
 
       - name: Import code signing certificate
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: |
-          # Decode the certificate
           echo "$CSC_LINK" | base64 --decode > certificate.p12
-          
-          # Create a temporary keychain
           security create-keychain -p actions build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p actions build.keychain
-          
-          # Import the certificate
           security import certificate.p12 -k build.keychain -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
-          
-          # Clean up
           rm certificate.p12
 
       - name: Build and sign Electron app

@@ -4,15 +4,10 @@ copyright: Copyright © 2026
 
 directories:
   output: release
-  buildResources: electron/resources
 
 files:
   - dist/public/**/*
   - electron/**/*
-  - "!node_modules"
-  - "!client"
-  - "!server"
-  - "!.manus-logs"
 
 mac:
   category: public.app-category.utilities
@@ -23,7 +18,6 @@ mac:
     - target: zip
       arch:
         - arm64
-  icon: electron/resources/icon.icns
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: electron/entitlements.mac.plist

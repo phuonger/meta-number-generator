@@ -211,3 +211,22 @@
 .countdown-ring {
   animation: countdown-fill 3s linear forwards;
 }
+
+
+/* Electron window drag region */
+body::before {
+  content: '';
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  -webkit-app-region: drag;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+button, input, a, [role="button"], select {
+  -webkit-app-region: no-drag;
+}

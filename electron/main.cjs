@@ -1,52 +1,75 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, protocol } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
-// Disable hardware acceleration for better compatibility
-app.disableHardwareAcceleration();
+let mainWindow;
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 1024,
-    height: 768,
-    minWidth: 600,
-    minHeight: 500,
-    titleBarStyle: "hiddenInset",
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    titleBarStyle: "hidden",
     trafficLightPosition: { x: 16, y: 16 },
-    backgroundColor: "#1a8fc4",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    show: false,
   });
 
-  // Load the built static files
-  win.loadFile(path.join(__dirname, "..", "dist", "public", "index.html"));
+  const distPath = path.join(__dirname, "..", "dist", "public");
 
-  // Show window when ready to prevent flash
-  win.once("ready-to-show", () => {
-    win.show();
+  // Register a custom protocol to serve files and handle SPA routing
+  protocol.handle("app", (request) => {
+    const url = new URL(request.url);
+    let filePath = path.join(distPath, url.pathname);
+    
+    // If file doesn't exist, serve index.html (SPA fallback)
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(distPath, "index.html");
+    }
+    
+    return new Response(fs.readFileSync(filePath), {
+      headers: { "Content-Type": getMimeType(filePath) },
+    });
   });
 
-  // Open external links in default browser
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    require("electron").shell.openExternal(url);
-    return { action: "deny" };
+  mainWindow.loadURL("app://./index.html");
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
+function getMimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const types = {
+    ".html": "text/html",
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".svg": "image/svg+xml",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".ico": "image/x-icon",
+  };
+  return types[ext] || "application/octet-stream";
+}
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
+app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
 });

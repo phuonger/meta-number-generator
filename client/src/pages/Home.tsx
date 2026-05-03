@@ -11,6 +11,43 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+/* ── Idle animated placeholder ── */
+function IdlePlaceholder() {
+  const [digits, setDigits] = useState("???")
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const chars = "0123456789";
+    timer.current = setInterval(() => {
+      const len = 2 + Math.floor(Math.random() * 2); // 2-3 digits
+      let s = "";
+      for (let i = 0; i < len; i++) {
+        s += chars[Math.floor(Math.random() * 10)];
+      }
+      setDigits(s);
+    }, 120);
+    return () => { if (timer.current) clearInterval(timer.current); };
+  }, []);
+
+  return (
+    <motion.div
+      className="meta-number text-[7rem] sm:text-[9rem] md:text-[11rem] leading-none tabular-nums select-none"
+      style={{ opacity: 0.25, filter: "blur(2px)" }}
+      animate={{
+        opacity: [0.15, 0.3, 0.15],
+        scale: [0.98, 1.02, 0.98],
+      }}
+      transition={{
+        duration: 2.5,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
+    >
+      {digits}
+    </motion.div>
+  );
+}
+
 /* ── Scramble hook ── */
 const DIGITS = "0123456789";
 
@@ -185,7 +222,7 @@ export default function Home() {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 280, damping: 18 }}
               >
-                {display ?? "—"}
+                {display ?? <IdlePlaceholder />}
               </motion.div>
             </AnimatePresence>
 

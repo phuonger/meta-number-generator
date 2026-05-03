@@ -209,6 +209,7 @@ export default function Home() {
   const [isMultiMode, setIsMultiMode] = useState(false);
   const [showMultiSummary, setShowMultiSummary] = useState(false);
   const [manualNextWinner, setManualNextWinner] = useState(false);
+  const [autoAdvanceDelay, setAutoAdvanceDelay] = useState(3); // seconds
   const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs
@@ -395,18 +396,18 @@ export default function Home() {
     }
   }, [lastWinnerRevealed]);
 
-  // Auto-advance to next winner after 3 seconds (when not manual next and not last winner)
+  // Auto-advance to next winner (when not manual next and not last winner)
   const shouldAutoAdvance = isMultiMode && isRevealed && !busy && multiIndex < multiResults.length - 1 && !manualNextWinner && !showMultiSummary;
   useEffect(() => {
     if (shouldAutoAdvance) {
       autoNextTimer.current = setTimeout(() => {
         handleNextWinner();
-      }, 3000);
+      }, autoAdvanceDelay * 1000);
       return () => {
         if (autoNextTimer.current) { clearTimeout(autoNextTimer.current); autoNextTimer.current = null; }
       };
     }
-  }, [shouldAutoAdvance, handleNextWinner]);
+  }, [shouldAutoAdvance, handleNextWinner, autoAdvanceDelay]);
 
 
   /* Fullscreen toggle */
@@ -1282,7 +1283,7 @@ export default function Home() {
                         </p>
                         <p className="text-white/50 text-xs mt-0.5"
                           style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
-                          {manualNextWinner ? "Click to advance to next winner" : "Auto-advances after 3 seconds"}
+                          {manualNextWinner ? "Click to advance to next winner" : `Auto-advances after ${autoAdvanceDelay}s`}
                         </p>
                       </div>
                       <button
@@ -1302,6 +1303,33 @@ export default function Home() {
                         />
                       </button>
                     </div>
+
+                    {/* Auto-advance delay (only shown when not manual) */}
+                    {!manualNextWinner && (
+                      <div className="mb-5">
+                        <label className="text-white/80 text-sm font-semibold block mb-2"
+                          style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                          Time Between Winners: <span className="text-white font-bold">{autoAdvanceDelay}s</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={1}
+                          max={10}
+                          step={1}
+                          value={autoAdvanceDelay}
+                          onChange={e => setAutoAdvanceDelay(Number(e.target.value))}
+                          className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                          style={{
+                            background: `linear-gradient(to right, white ${((autoAdvanceDelay - 1) / 9) * 100}%, oklch(1 0 0 / 0.2) ${((autoAdvanceDelay - 1) / 9) * 100}%)`,
+                          }}
+                        />
+                        <div className="flex justify-between text-white/50 text-xs mt-1"
+                          style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                          <span>1s</span>
+                          <span>10s</span>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 

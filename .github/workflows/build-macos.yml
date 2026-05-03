@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Install Electron
+        run: pnpm add -D electron electron-builder
+
       - name: Build web app
         run: npx vite build
 

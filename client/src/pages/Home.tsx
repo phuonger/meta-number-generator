@@ -199,6 +199,7 @@ export default function Home() {
   const [manualStop, setManualStop] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [waitingForStop, setWaitingForStop] = useState(false);
+  const [customTitle, setCustomTitle] = useState("Number Generator");
 
   // Refs
   const scrambleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -445,7 +446,7 @@ export default function Home() {
               exit={{ opacity: 0, y: -24 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
-              Number Generator
+              {customTitle}
             </motion.h1>
           )}
         </AnimatePresence>
@@ -844,6 +845,31 @@ export default function Home() {
                       }}
                     />
                   </button>
+                </div>
+
+                {/* Custom Title */}
+                <div className="mb-5">
+                  <label className="text-white/80 text-sm font-semibold block mb-2"
+                    style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                    Custom Title
+                  </label>
+                  <input
+                    type="text"
+                    value={customTitle}
+                    onChange={e => setCustomTitle(e.target.value)}
+                    placeholder="Number Generator"
+                    maxLength={40}
+                    className="w-full px-4 py-3 rounded-2xl font-semibold text-sm text-white outline-none transition-all"
+                    style={{
+                      fontFamily: "Helvetica Neue, Arial, sans-serif",
+                      background: "oklch(1 0 0 / 0.18)",
+                      border: "1.5px solid oklch(1 0 0 / 0.4)",
+                    }}
+                  />
+                  <p className="text-white/40 text-xs mt-1"
+                    style={{ fontFamily: "Helvetica Neue, Arial, sans-serif" }}>
+                    e.g. "Raffle Draw", "Lottery Pick", "Team Selector"
+                  </p>
                 </div>
 
                 {/* Sound */}

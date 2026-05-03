@@ -408,25 +408,6 @@ export default function Home() {
     }
   }, [shouldAutoAdvance, handleNextWinner]);
 
-  // Auto-regenerate for single number mode after 3 seconds
-  const shouldAutoRegenSingle = !isMultiMode && isRevealed && !busy && !allExhausted && !showMultiSummary;
-  const [countdownKey, setCountdownKey] = useState(0);
-  useEffect(() => {
-    if (shouldAutoRegenSingle) {
-      setCountdownKey(k => k + 1);
-      autoNextTimer.current = setTimeout(() => {
-        // Auto-generate next number
-        handleReset();
-        // Small delay then generate
-        setTimeout(() => {
-          generate();
-        }, 100);
-      }, 3000);
-      return () => {
-        if (autoNextTimer.current) { clearTimeout(autoNextTimer.current); autoNextTimer.current = null; }
-      };
-    }
-  }, [shouldAutoRegenSingle]);
 
   /* Fullscreen toggle */
   const toggleFullscreen = useCallback(() => {
@@ -888,61 +869,22 @@ export default function Home() {
               </motion.button>
             </>
           ) : isRevealed ? (
-            <motion.div
-              className="flex items-center gap-4"
+            <motion.button
+              onClick={handleReset}
+              className="relative overflow-hidden px-12 py-4 rounded-full text-xl font-bold tracking-wide transition-all duration-200 active:scale-95"
+              style={{
+                fontFamily: "Helvetica Neue, Arial, sans-serif",
+                background: "white",
+                color: "oklch(0.38 0.18 250)",
+                boxShadow: "0 8px 32px oklch(0 0 0 / 0.18), 0 2px 8px oklch(0 0 0 / 0.1)",
+              }}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.04, boxShadow: "0 12px 40px oklch(0 0 0 / 0.22)" }}
+              whileTap={{ scale: 0.97 }}
             >
-              {/* Countdown ring for next generation */}
-              {!allExhausted && (
-                <motion.button
-                  key={`ring-${countdownKey}`}
-                  onClick={generate}
-                  className="relative flex items-center justify-center"
-                  style={{ width: 56, height: 56 }}
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                  title="Generate next number"
-                >
-                  <svg width="56" height="56" className="absolute inset-0 -rotate-90">
-                    <circle
-                      cx="28" cy="28" r="24"
-                      fill="none"
-                      stroke="oklch(1 0 0 / 0.2)"
-                      strokeWidth="3.5"
-                    />
-                    <circle
-                      cx="28" cy="28" r="24"
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 24}`}
-                      strokeDashoffset={`${2 * Math.PI * 24}`}
-                      className="countdown-ring"
-                    />
-                  </svg>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="relative">
-                    <polyline points="23 4 23 10 17 10"/>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                  </svg>
-                </motion.button>
-              )}
-              <motion.button
-                onClick={handleReset}
-                className="relative overflow-hidden px-10 py-4 rounded-full text-xl font-bold tracking-wide transition-all duration-200 active:scale-95"
-                style={{
-                  fontFamily: "Helvetica Neue, Arial, sans-serif",
-                  background: "white",
-                  color: "oklch(0.38 0.18 250)",
-                  boxShadow: "0 8px 32px oklch(0 0 0 / 0.18), 0 2px 8px oklch(0 0 0 / 0.1)",
-                }}
-                whileHover={{ scale: 1.04, boxShadow: "0 12px 40px oklch(0 0 0 / 0.22)" }}
-                whileTap={{ scale: 0.97 }}
-              >
-                Reset
-              </motion.button>
-            </motion.div>
+              Reset
+            </motion.button>
           ) : (
             <motion.button
               onClick={generate}

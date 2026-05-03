@@ -197,3 +197,17 @@
     0 0 40px oklch(1 0 0 / 0.5),
     0 2px 20px oklch(0 0 0 / 0.1);
 }
+
+/* Countdown ring animation — 3 second fill */
+@keyframes countdown-fill {
+  from {
+    stroke-dashoffset: 175.93;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.countdown-ring {
+  animation: countdown-fill 3s linear forwards;
+}

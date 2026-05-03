@@ -18,7 +18,9 @@ function createWindow() {
   });
 
   const indexPath = path.join(__dirname, "..", "dist", "public", "index.html");
-  mainWindow.loadFile(indexPath);
+  
+  // Load with hash routing to avoid file:// path issues with client-side router
+  mainWindow.loadURL(`file://${indexPath}#/`);
 
   mainWindow.on("closed", () => {
     mainWindow = null;
